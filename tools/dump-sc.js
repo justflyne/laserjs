@@ -7,12 +7,12 @@ const { ScFileDump } = require('../src/logging');
 
 async function main(args) {
     if (!args.length || args.includes('--help')) {
-        console.log(`SC из расшифрованного OwnHomeData (24101):
+        console.log(`SC from decrypted OwnHomeData (24101):
   node tools/dump-sc.js dumps/24101.bin
   node tools/dump-sc.js dumps/24101.bin --out ./sc --url https://event-assets.brawlstars.com
 
-Результат: sc/index.json в директории клиента (имя .sc → SHA-1) и сами .sc файлы.
-Повторный --url добавляет резервный CDN. Хэш проверяется до сохранения файла.`);
+Result: sc/index.json in the client directory (.sc name → SHA-1) plus the .sc files.
+Repeat --url to add a fallback CDN. The hash is verified before saving the file.`);
         return;
     }
     const packet = path.resolve(args[0]);

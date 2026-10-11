@@ -201,32 +201,32 @@ function validate(config) {
 }
 
 function help() {
-    return `LASERJS — клиент протокола v69
+    return `LASERJS — v69 protocol client
 
-Запуск: node index.js [host [port]] [параметры]
+Usage: node index.js [host [port]] [options]
 
-  --host HOST / --port N  Сервер
-  --config FILE          Настройки JSON (settings.json)
-  --piar                 Поток ботов с посещением комнат и сообщением из names.txt
-  --piar-bots N          Одновременные боты; 0/unlimited — без предела
-  --dump                 Сохранить пакеты и разобрать их из .so
-  --dump-sc              Скачать SC из OwnHomeData и сохранить индекс хэшей
-  --no-log               Отключить журнал пакетов
-  --verbose              Подробный вывод
-  --no-color             Отключить цвета
-  --help                 Эта справка
+  --host HOST / --port N  Server
+  --config FILE          JSON settings (settings.json)
+  --piar                 Bot flow visiting rooms with a message from names.txt
+  --piar-bots N          Concurrent bots; 0/unlimited — no limit
+  --dump                 Save packets and decode them
+  --dump-sc              Download SC from OwnHomeData and save the hash index
+  --no-log               Disable the packet journal
+  --verbose              Verbose output
+  --no-color             Disable colors
+  --help                 This help
 
-Ники, версии, токены, задержки и настройки дампа задаются в settings.json.
+Nicknames, versions, tokens, delays and dump settings live in settings.json.
 
-Команды терминала после LoginOk:
-  /createRoom                 Создать комнату
-  /joinRoom X...|HIGH-LOW|ID   Войти в комнату
-  /room                       Текущая комната и участники
-  /chat TEXT                  Отправить сообщение
-  /leaveRoom                  Выйти
-  /spectate #TAG N true|false  Запустить зрителей с флагом Brawl TV
-  /spectate stop              Остановить зрителей
-  /help                       Список команд`;
+Terminal commands after LoginOk:
+  /createRoom                 Create a room
+  /joinRoom X...|HIGH-LOW|ID   Join a room
+  /room                       Current room and members
+  /chat TEXT                  Send a message
+  /leaveRoom                  Leave
+  /spectate #TAG N true|false  Start viewers with the Brawl TV flag
+  /spectate stop              Stop viewers
+  /help                       List commands`;
 }
 
 module.exports = { parseConfig, help };

@@ -1,130 +1,111 @@
 # LASERJS
 
-Клиент протокола Brawl Stars v69 на Node.js 18+. Зависимости JavaScript уже лежат в `vendor/`, установка через npm не требуется.
+## English
 
+### What is this
+Node.js 18+ client for the Brawl Stars v69 protocol. JavaScript dependencies are already in `vendor/`, no npm install needed.
+
+### What it does
+- Connects to a server over TCP (+ UDP for battles) and logs in (new or saved account).
+- Picks a nickname from `names.txt` for new accounts.
+- Team rooms: create, join by code / ID, show members, chat, leave.
+- Spectate: attach viewers to a player, keep the battle session alive, retry after battle end.
+- Bots mode (`--piar`): many bots create rooms, scan neighbor IDs, join free rooms, send a message and leave.
+- Saves traffic to `logs/traffic.jsonl` and packet dumps to `dumps/`, downloads game assets to `sc/`.
+
+### How to connect
+1. Edit `settings.json` (server version, hash, public key):
+```json
+{
+  "host": "127.0.0.1",
+  "port": 9339
+}
+```
+
+2. Run:
 ```bash
 node index.js
 node index.js 127.0.0.1 9339
 node index.js --help
 ```
 
-Все команды терминала находятся в `src/commands.js`:
-
+3. After `LoginOk`, use terminal commands:
 ```text
 /createRoom
 /joinRoom X...
 /joinRoom HIGH-LOW
 /room
-/chat текст
+/chat hello
 /leaveRoom
 /spectate #2PP 100 true
 /spectate stop
 /help
 ```
 
-Команды доступны после LoginOk. В `/spectate` число задаёт количество зрителей, `true` передаёт серверу флаг Brawl TV, `false` — обычное наблюдение. Игрок должен находиться в доступном для наблюдения бою; иначе боты повторяют запрос. Запуск подтверждается получением VisionUpdate, после чего боты поддерживают соединение и подтверждают тики боя. После завершения боя они снова запрашивают наблюдение за тем же игроком.
-
-Для `/joinRoom` нужен код или ID комнаты из ответа `/createRoom` или `/room`. Строка `logged in as` и поле `member` содержат ID аккаунтов игроков. После создания комнаты клиент выводит готовую команду `/joinRoom X...`, которую можно выполнить в другом клиенте, пока комната существует.
-
-Для UDP используется адрес и порт из ответа сервера 24112: этот порт должен быть доступен клиенту. Поддерживаются UDP без шифрования, шифрованные UDP-пакеты v69 с ключом из 24112 и VisionUpdate через TCP.
-
-Зрители по умолчанию запускаются группами по 16 без секундной паузы между ботами. Получив домашние данные, бот отправляет ник и сразу запрос наблюдения. Подтверждение или отклонение ника обрабатывается отдельно и не останавливает наблюдение. Если бой недоступен и сервер молчит, новый запрос отправляется через 2 секунды ожидания и 500 мс паузы; загрузка уже найденного боя использует обычный `timeoutMs`. При потере первого UDP-пакета подключение повторяется через 100 мс. Ники загружаются один раз при запуске потока. Каждый зритель проходит собственный Login и получает отдельную сессию боя, поэтому время подключения зависит и от ответов сервера.
-
-## Боты
-
-Ники берутся из `names.txt`, по одному в строке. После получения домашних данных нового аккаунта клиент один раз отправляет команду 530 с возрастом 18. Разрешение чата проверяется по ответам сервера.
-
-Если сервер отклоняет ник ответом 20205 с кодом 1, клиент пробует следующий ещё не использованный ник из TXT. `/joinRoom` и `/createRoom` у нового аккаунта ждут подтверждения имени, затем автоматически отправляют запрос комнаты. Если ники закончились или подтверждение не пришло, команда сообщает об ошибке регистрации. Наблюдение продолжает работать независимо от подтверждения имени.
-
+Notes:
+- `/joinRoom` needs a room code or ID from `/createRoom` or `/room`.
+- `/spectate #TAG N true|false`: `N` is viewer count (`0` = unlimited), `true` sets the Brawl TV flag.
+- Viewers need the player to be in a watchable battle; otherwise they retry automatically.
+- UDP host/port comes from server message `24112` and must be reachable from the client.
+- Bots mode:
 ```bash
 node index.js --piar
 node index.js --piar --piar-bots 100
 ```
+- Useful options: `--host`, `--port`, `--config FILE`, `--piar`, `--piar-bots N`, `--dump`, `--dump-sc`, `--no-log`, `--verbose`, `--no-color`, `--help`. Other settings live in `settings.json`. Paths in JSON are relative to the settings file. Use `settings.local.json` + `--config settings.local.json` for local tokens.
 
-По умолчанию поток не ограничен по числу ботов. Каждый бот создаёт свою комнату, получает ID, выходит и ищет комнаты с меньшими и большими ID. Найденные комнаты попадают в общий пул; боты заходят в свободные места, отправляют свой ник, остаются на 2–4 секунды и выходят. Отклонённые ID исключаются из дальнейшего поиска, ошибки входа скрыты в консоли.
+---
 
-## Настройки
+## Русский
 
-В командной строке оставлены только `--host`, `--port`, `--config`, `--piar`, `--piar-bots`, `--dump`, `--dump-sc`, `--no-log`, `--verbose`, `--no-color`, `--help`.
+### Что это
+Клиент протокола Brawl Stars v69 на Node.js 18+. Зависимости уже лежат в `vendor/`, установка через npm не нужна.
 
-Остальные параметры задаются в `settings.json`. Например, можно добавить:
+### Что делает
+- Подключается к серверу по TCP (+ UDP для боя) и логинится (новый или сохранённый аккаунт).
+- Берёт ник из `names.txt` для новых аккаунтов.
+- Комнаты: создание, вход по коду / ID, просмотр участников, чат, выход.
+- Наблюдение: подключает зрителей к игроку, держит сессию боя, повторяет запрос после конца боя.
+- Режим ботов (`--piar`): много ботов создают комнаты, сканируют соседние ID, заходят в свободные комнаты, отправляют сообщение и выходят.
+- Сохраняет трафик в `logs/traffic.jsonl`, дампы пакетов в `dumps/`, игровые файлы в `sc/`.
 
+### Как подключиться
+1. Настрой `settings.json` (версия сервера, хеш, публичный ключ):
 ```json
 {
   "host": "127.0.0.1",
-  "port": 9339,
-  "namesFile": "names.txt",
-  "piarBots": 0,
-  "piarDelayMs": 1000,
-  "piarRoomCooldownMs": 30000,
-  "timeoutMs": 15000,
-  "logPath": "logs/traffic.jsonl"
+  "port": 9339
 }
 ```
 
-Это пример дополнительных полей: сохраните в файле существующие версию, `hash` и `serverPublicKey` для своего сервера. `piarBots: 0` или `"unlimited"` задаёт поток без предела. Для другого сообщения используйте `piarMessage` или `piarMessagesFile`; без них бот отправляет свой ник.
-
-| Настройка | Назначение |
-| --- | --- |
-| `major`, `minor`, `build`, `protocolVersion`, `cryptoVersion` | Версия протокола |
-| `hash`, `serverPublicKey` | Отпечаток ресурсов и публичный ключ сервера |
-| `hi`, `lo`, `token` | Сохранённый аккаунт; без них создаётся новый |
-| `namesFile` | TXT со списком ников |
-| `age` | Возраст для команды 530 у новых аккаунтов; по умолчанию 18, `null` отключает отправку |
-| `spectateDelayMs`, `spectateRetryMs` | Пауза между запусками зрителей (по умолчанию 0) и перед повторным запросом (500 мс) |
-| `color`, `showBanner`, `verbose`, `hex` | Вывод в консоль |
-| `logPath` | JSONL-журнал; `null` отключает запись |
-| `dumpDirectory`, `nativeLibrary` | Папка дампов и библиотека для нативного разбора |
-| `dumpSc`, `scDirectory`, `scAssetUrls` | Выгрузка SC, её папка и адреса CDN |
-| `helloOnly`, `exitOnLogin` | Завершение после ServerHello или LoginOk |
-
-Пути в JSON считаются относительно файла настроек. Для локальных токенов можно использовать `settings.local.json`, который исключён из Git:
-
+2. Запусти:
 ```bash
-cp settings.json settings.local.json
-node index.js --config settings.local.json
+node index.js
+node index.js 127.0.0.1 9339
+node index.js --help
 ```
 
-Аттестация находится в локальном `src/attestation.js`, который исключён из Git. Он содержит алгоритм ответа на challenge и подготовку аттестации для Login. Для подключения этот файл нужно сохранить локально; если его нет, клиент сообщает об ошибке. Шифрование TCP и UDP находится отдельно в `src/crypto.js`.
-
-Диагностические подмены Login задаются в локальном JSON: `loginBlobFile`, `loginFile` или `loginHex`, `sessionResponseFile` или `sessionResponseHex`, `sessionResponseProvider`. Провайдер экспортирует функцию, принимающую свежий challenge и возвращающую байты ответа. Секретные настройки храните в `settings.local.json`, дополнительные материалы — в `private/`. Файлы аттестации, ответов сессии, бинарных Login, журналы и дампы исключены через `.gitignore`.
-
-## Дампы
-
-```bash
-node index.js --dump
-node index.js --dump-sc
-node tools/export-packet.js dumps/24101.bin
-node tools/export-packet.js --build dumps/24101.js dumps/24101.rebuilt.bin
-node tools/dump-sc.js dumps/24101.bin
+3. После `LoginOk` используй команды:
+```text
+/createRoom
+/joinRoom X...
+/joinRoom HIGH-LOW
+/room
+/chat привет
+/leaveRoom
+/spectate #2PP 100 true
+/spectate stop
+/help
 ```
 
-`--dump-sc` скачивает SC из OwnHomeData в `sc/` и сохраняет индекс хэшей `sc/index.json`. Папка и адреса CDN задаются через `scDirectory` и `scAssetUrls` в настройках.
-
-`--dump` сохраняет BIN, HEX, JS, JSON и полный TCP frame. Для разбора из `.so` нужны Python 3, библиотека вашей версии и Unicorn:
-
+Заметки:
+- Для `/joinRoom` нужен код или ID комнаты из `/createRoom` или `/room`.
+- `/spectate #TAG N true|false`: `N` — число зрителей (`0` = без лимита), `true` — флаг Brawl TV.
+- Зрителям нужен игрок в бою, доступном для наблюдения, иначе запрос повторяется автоматически.
+- Адрес/порт UDP приходит от сервера в сообщении `24112` и должен быть доступен клиенту.
+- Режим ботов:
 ```bash
-python3 -m pip install --target .analysis-python -r tools/python-requirements.txt
+node index.js --piar
+node index.js --piar --piar-bots 100
 ```
-
-Путь к `.so` задаётся через `nativeLibrary`; по умолчанию используется `../v69.230_arm64.so`. Экспортированный JS принимает `PacketWriter` из `src/protocol/protocol.js` и собирает тело пакета без TCP-заголовка.
-
-## Исходники
-
-| Файл | Содержимое |
-| --- | --- |
-| `index.js` | Запуск приложения |
-| `src/client.js` | TCP-сессия, аккаунт и ответы на серверные команды |
-| `src/commands.js` | Все команды терминала |
-| `src/config.js` | Настройки и короткая справка |
-| `src/bots.js` | Боты, зрители и общий пул комнат |
-| `src/crypto.js` | Шифрование TCP-сессии и UDP |
-| `src/attestation.js` | Локальный приватный модуль аттестации, исключённый из Git |
-| `src/logging.js` | Консоль, журнал и необязательные дампы |
-| `src/protocol/protocol.js` | Чтение и запись пакетов, фреймы, ID, коды комнат и структуры команд |
-| `src/protocol/messageFactory.js` | Фабрика сообщений и экспорт пакетов |
-| `src/protocol/messages/` | Отдельные определения пакетов |
-
-Обёртка `ResourceManager` удалена. Версия и хэш берутся непосредственно из настроек; SC скачиваются только при включённом дампе. Тесты, DEX-файлы, резервные копии и старые дампы убраны из проекта. Новые журналы, дампы, локальные настройки и установленные зависимости исключены через `.gitignore`.
-
-Лицензии: `LICENSE` и `THIRD_PARTY_NOTICES.md`.
+- Полезные опции: `--host`, `--port`, `--config FILE`, `--piar`, `--piar-bots N`, `--dump`, `--dump-sc`, `--no-log`, `--verbose`, `--no-color`, `--help`. Остальное — в `settings.json`. Пути в JSON считаются от файла настроек. Для локальных токенов используй `settings.local.json` + `--config settings.local.json`.

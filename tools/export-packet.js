@@ -9,17 +9,17 @@ const { PacketWriter } = require('../src/protocol/protocol');
 
 function main(args) {
     if (args.includes('--help') || args.length === 0) {
-        console.log(`Экспорт расшифрованного тела пакета в HEX и JS:
+        console.log(`Export decrypted packet body to HEX and JS:
   node tools/export-packet.js dumps/24101.bin
   node tools/export-packet.js dumps/24101.bin --native ../v69.230_arm64.so
   node tools/export-packet.js dumps/24101.bin --trace dumps/24101.trace.json
   node tools/export-packet.js packet.bin --id 24101 --out dumps/24101.bin
 
-Сборка тела из редактируемых writeVInt/writeInt/writeString/writeRaw:
+Build body from editable writeVInt/writeInt/writeString/writeRaw:
   node tools/export-packet.js --build dumps/24101.js dumps/24101.rebuilt.bin
 
---native требует Python 3 и unicorn; выполняет полный нативный декодер пакета.
-HEX и JS всегда проверяются побайтовой обратной сборкой. TCP-заголовок не добавляется.`);
+--native requires Python 3 and unicorn; runs the full packet decoder.
+HEX and JS are always verified by byte-exact rebuild. No TCP header is added.`);
         return;
     }
     if (args[0] === '--build') {
