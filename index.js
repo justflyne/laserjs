@@ -6,11 +6,13 @@ const { ProtocolClient, AccountManager } = require('./src/client');
 const { PiarRunner } = require('./src/bots');
 const { SpectateCommands, CommandConsole } = require('./src/commands');
 
-async function main(args = process.argv.slice(2)) {
-    process.stdout.write('supercell fixed that thing\n');
-    return 0;
+async function main(args = process.argv.slice(2)) {    
     if (args.includes('--help') || args.includes('-h')) {
         process.stdout.write(help() + '\n');
+        return 0;
+    }
+    if (args.includes('--piar') || args.includes('-piar-bots')) {
+        process.stdout.write('supercell fixed that thing\n');
         return 0;
     }
     let journal;
