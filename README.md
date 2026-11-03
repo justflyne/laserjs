@@ -1,12 +1,13 @@
 # LASERJS
 
-## English
+Клиент Brawl Stars на Node.js. Подключается к обычному серверу игры (`game.brawlstarsgame.com:9339`), проходит логин по протоколу v70.648 и дальше работает как консольный клиент: комнаты, чат, спектейт, боты.
 
-### What is this
-Fake-client to connect prod Brawl Stars server (game.brawlstarsgame.com:9339). Node.js 18+ client for the v69 protocol. JavaScript dependencies are already in `vendor/`, no npm install needed.
+Это не эмулятор сервера, а именно клиент. Всё нужное для запуска уже лежит в репозитории: зависимости в `vendor/`, ставить через npm ничего не надо. Хватит Node.js 18+.
 
-### How to run
-1. Edit `settings.json` (server version, hash, public key):
+## Быстрый старт
+
+Проверь `settings.json` — там версия, хеш и публичный ключ:
+
 ```json
 {
   "host": "game.brawlstarsgame.com",
@@ -14,118 +15,65 @@ Fake-client to connect prod Brawl Stars server (game.brawlstarsgame.com:9339). N
 }
 ```
 
-2. Start:
+Дальше:
+
 ```bash
 node index.js
-node index.js game.brawlstarsgame.com 9339
 node index.js --help
 ```
 
-3. Wait for `LoginOk`, then type commands in the terminal.
+Когда в логе появится `LoginOk`, можно вводить команды в терминал.
 
-### Flags
-Full docs are built into the script:
-```bash
-node index.js --help
-```
+## Настройки
 
-Available flags:
-```text
---host HOST / --port N  Server (default: game.brawlstarsgame.com:9339)
---config FILE          JSON settings file (default: settings.json)
---piar                 Bot flow visiting rooms with a message from names.txt
---piar-bots N          Concurrent bots; 0 / unlimited = no limit
---dump                 Save packet dumps to dumps/
---dump-sc              Download SC assets from OwnHomeData to sc/
---no-log               Disable packet journal (logs/traffic.jsonl)
---verbose              Verbose output
---no-color             Disable colors
---help, -h             Show help and exit
-```
-Extra settings (versions, tokens, timeouts, paths) live in `settings.json`. Paths in JSON are relative to the settings file. For local tokens use `settings.local.json`:
+Основное лежит в `settings.json`. Пути в нём считаются от самого файла настроек, а не от текущей папки.
+
+Для токенов и всего, что не должно попасть в git, есть `settings.local.json`:
+
 ```bash
 cp settings.json settings.local.json
 node index.js --config settings.local.json
 ```
 
-### Commands
-All commands work after `LoginOk`:
+`appVersion` — строка версии клиента, которая уходит в Login. Если оставить `null`, возьмётся `major.minor`.
 
-| Command | What it does |
-| --- | --- |
-| `/createRoom` | Creates a team room. After creation the client prints `/joinRoom X...` for a second client |
-| `/joinRoom X...` | Joins a room by code (also accepts `HIGH-LOW` or decimal ID from `/createRoom` / `/room`) |
-| `/room` | Shows current room: code, ID, type, members, owner, chat state |
-| `/chat TEXT` | Sends a chat message to the current room (unmutes first if needed, waits for server echo) |
-| `/leaveRoom` | Leaves the current room |
-| `/spectate #TAG N true\|false` | Starts `N` viewers on player `#TAG` (`0` = unlimited). `true` = Brawl TV flag, `false` = normal spectate. Retries automatically if the player has no watchable battle |
-| `/spectate stop` | Stops running spectator bots |
-| `/help` | Prints command list |
+`fingerprintVersion` — версия ресурсов для логов и ResourceManager. В текущих настройках это `70.735.1`. Если `null`, будет `major.minor.build`.
 
-UDP host/port for battles comes from server message `24112` and must be reachable from the client.
+## Флаги
 
----
-
-## Русский
-
-### Что это
-Фейк-клиент для подключения к прод-серверу Brawl Stars (game.brawlstarsgame.com:9339). Клиент протокола v69 на Node.js 18+. Зависимости уже лежат в `vendor/`, установка через npm не нужна.
-
-### Как запускать
-1. Настрой `settings.json` (версия сервера, хеш, публичный ключ):
-```json
-{
-  "host": "game.brawlstarsgame.com",
-  "port": 9339
-}
-```
-
-2. Запуск:
-```bash
-node index.js
-node index.js game.brawlstarsgame.com 9339
-node index.js --help
-```
-
-3. Дождись `LoginOk`, затем вводи команды в терминал.
-
-### Флаги
-Подробная документация встроена в скрипт:
-```bash
-node index.js --help
-```
-
-Доступные флаги:
 ```text
 --host HOST / --port N  Сервер (по умолчанию: game.brawlstarsgame.com:9339)
---config FILE          Файл настроек JSON (по умолчанию: settings.json)
---piar                 Поток ботов: ходят по комнатам с сообщением из names.txt
---piar-bots N          Число ботов; 0 / unlimited = без лимита
---dump                 Сохранять дампы пакетов в dumps/
---dump-sc              Скачивать SC-ассеты из OwnHomeData в sc/
---no-log               Отключить журнал пакетов (logs/traffic.jsonl)
---verbose              Подробный вывод
---no-color             Отключить цвета
---help, -h             Показать помощь и выйти
-```
-Остальные настройки (версии, токены, таймауты, пути) лежат в `settings.json`. Пути в JSON считаются от файла настроек. Для локальных токенов используй `settings.local.json`:
-```bash
-cp settings.json settings.local.json
-node index.js --config settings.local.json
+--no-crypto             Отключить шифрование TCP/UDP и аттестацию
+--config FILE           Файл настроек JSON (по умолчанию: settings.json)
+--piar                  Боты ходят по комнатам с сообщением из names.txt
+--piar-bots N           Сколько ботов запускать; 0 или unlimited — без лимита
+--dump                  Сохранять дампы пакетов в dumps/
+--dump-sc               Скачивать SC-ассеты из OwnHomeData в sc/
+--no-log                Отключить журнал пакетов (logs/traffic.jsonl)
+--verbose               Подробный вывод
+--no-color              Отключить цвета
+--help, -h              Показать помощь и выйти
 ```
 
-### Команды
-Все команды работают после `LoginOk`:
+`--dump` сразу раскладывает OwnHomeData в `dumps/24101.js`, без запуска нативного эмулятора для этого пакета. Понятные поля пишутся через `writeVInt` / `writeDataReference`, неизвестные байты — через `writeRaw`. Пакет сохраняется целиком, так что его можно собрать обратно:
+
+```bash
+node tools/export-packet.js --build dumps/24101.js dumps/24101.rebuilt.bin
+```
+
+## Команды
+
+Все команды доступны после `LoginOk`:
 
 | Команда | Что делает |
 | --- | --- |
-| `/createRoom` | Создаёт комнату. После создания клиент печатает готовый `/joinRoom X...` для второго клиента |
-| `/joinRoom X...` | Вход в комнату по коду (также принимает `HIGH-LOW` или decimal ID из `/createRoom` / `/room`) |
-| `/room` | Показывает текущую комнату: код, ID, тип, участников, владельца, состояние чата |
-| `/chat TEXT` | Отправляет сообщение в текущую комнату (при нужде сначала снимает мут, ждёт эхо сервера) |
-| `/leaveRoom` | Выйти из текущей комнаты |
-| `/spectate #TAG N true\|false` | Запускает `N` зрителей на игрока `#TAG` (`0` = без лимита). `true` = флаг Brawl TV, `false` = обычное наблюдение. Если боя нет — повторяет запрос автоматически |
-| `/spectate stop` | Останавливает запущенных зрителей |
+| `/createRoom` | Создаёт комнату и печатает готовый `/joinRoom X...` для второго клиента |
+| `/joinRoom X...` | Вход по коду комнаты (можно `HIGH-LOW` или decimal ID из `/createRoom` и `/room`) |
+| `/room` | Показывает текущую комнату: код, ID, тип, участников, владельца, чат |
+| `/chat TEXT` | Отправляет сообщение в комнату. Если надо, сначала снимает мут и ждёт эхо сервера |
+| `/leaveRoom` | Выходит из комнаты |
+| `/spectate #TAG N true\|false` | Запускает `N` зрителей на игрока `#TAG` (`0` — без лимита). `true` включает флаг Brawl TV, `false` — обычный спектейт. Если боя нет, клиент сам повторяет запрос |
+| `/spectate stop` | Останавливает зрителей |
 | `/help` | Список команд |
 
-Адрес/порт UDP для боя приходит от сервера в сообщении `24112` и должен быть доступен клиенту.
+Адрес и порт UDP для боя приходят от сервера в сообщении `24112`, так что с твоей машины они должны быть доступны.

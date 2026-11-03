@@ -4,6 +4,9 @@ hello.jsonl
 logs/
 dumps/
 sc/
+docs/
+*.md
+!README.md
 .analysis-python/
 node_modules/
 __pycache__/
@@ -17,6 +20,9 @@ __pycache__/
 settings.local.json
 settings.*.json
 private/
+*[Nn][Bb]-[Ll]icense*
+*[Nn][Bb]-*.json
+*[Nn][Bb]-*.bin
 secrets/
 *[Aa][Tt][Tt][Ee][Ss][Tt]*
 *[Ss][Ee][Ss][Ss][Ii][Oo][Nn]*[Rr][Ee][Ss][Pp][Oo][Nn][Ss][Ee]*
@@ -27,6 +33,7 @@ secrets/
 *.bin
 *.hex
 *.apk
+*.dat
 *.smali
 10101.*
 20100.*

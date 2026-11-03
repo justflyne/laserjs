@@ -2,7 +2,7 @@
 'use strict';
 const { parseConfig, help } = require('./src/config');
 const { ConsoleLogger, PacketJournal } = require('./src/logging');
-const { ProtocolClient, AccountManager } = require('./src/client');
+const { ProtocolClient, AccountManager, ResourceManager } = require('./src/client');
 const { PiarRunner } = require('./src/bots');
 const { SpectateCommands, CommandConsole } = require('./src/commands');
 
@@ -34,12 +34,14 @@ async function main(args = process.argv.slice(2)) {
         journal = new PacketJournal(config.logPath);
         journal.record({ kind: 'session', brand: config.brand, host: config.host, port: config.port,
             version: `${config.major}.${config.minor}.${config.build}`, hash: config.hash,
-            cryptoVersion: config.cryptoVersion, serverPublicKey: config.serverPublicKey,
+            cryptoVersion: config.cryptoVersion, spk: config.spk,
             configFile: config.configFile });
         const account = new AccountManager(config);
         account.init(logger);
+        const resources = new ResourceManager(config);
+        resources.init(logger, account);
         if (config.logPath && config.verbose) logger.info('PacketJournal::open', `full traffic: ${config.logPath}`);
-        const client = new ProtocolClient({ config, logger, journal, account });
+        const client = new ProtocolClient({ config, logger, journal, account, names: resources.names });
         specCommands = new SpectateCommands(client, logger, PiarRunner);
         commandConsole = client.commandConsole = new CommandConsole(specCommands);
         interrupt = () => { specCommands.runner?.interrupt(); client.interrupt(); };

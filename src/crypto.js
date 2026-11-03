@@ -25,8 +25,8 @@ function incrementNonce(nonce) {
 }
 
 class PepperSession {
-    constructor(serverPublicKey) {
-        this.serverPublic = Buffer.from(serverPublicKey, 'hex');
+    constructor(spk) {
+        this.serverPublic = Buffer.from(spk, 'hex');
         if (this.serverPublic.length !== 32) throw new Error('Server public key must contain 32 bytes');
         const { privateKey, publicKey } = generateKeyPairSync('x25519');
         const peer = createPublicKey({ key: Buffer.concat([X25519_PUBLIC_PREFIX, this.serverPublic]),

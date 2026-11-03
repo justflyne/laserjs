@@ -5,7 +5,7 @@ const { randomInt } = require('node:crypto');
 const { PepperSession } = require('./crypto');
 const { PacketDump, ScFileDump } = require('./logging');
 const { FrameDecoder, encodeFrame } = require('./protocol/protocol');
-const { TYPES, messageName, encodeMessage, decodeMessage } = require('./protocol/messageFactory');
+const { messageFactory, TYPES, messageName, encodeMessage, decodeMessage } = require('./protocol/messageFactory');
 const { RoomCommands } = require('./commands');
 const { PiarBot, SpectateBot } = require('./bots');
 
@@ -16,9 +16,9 @@ class AccountManager {
         this.newAccountRequested = !config.token && config.hi === 0 && config.lo === 0 && !config.loginPayload;
     }
     init(logger) {
-        logger.info('AccountManager::init', this.token
-            ? `account ${this.accountId.join('-')} configured`
-            : 'AccountManager initialized! New account requested.');
+        logger.info('AccountManager::init', 'AccountManager initialized!');
+        if (logger.verbose) logger.info('AccountManager::init', this.token
+            ? `account ${this.accountId.join('-')} configured` : 'New account requested.');
     }
     acceptLogin(fields) {
         if (fields.accountId) this.accountId = fields.accountId;
@@ -29,6 +29,27 @@ class AccountManager {
 function readNames(file) {
     return fs.readFileSync(file, 'utf8').replace(/^\uFEFF/u, '').split(/\r?\n/u)
         .map(line => line.trim()).filter(Boolean);
+}
+
+class ResourceManager {
+    constructor(config) {
+        this.config = config;
+        this.fingerprint = null;
+        this.messages = null;
+        this.names = null;
+    }
+
+    init(logger, account) {
+        const { major, minor, build, hash, fingerprintVersion } = this.config;
+        this.fingerprint = Object.freeze({ sha: hash,
+            version: fingerprintVersion ?? `${major}.${minor}.${build}` });
+        logger.info('ResourceManager::loadFingerprint',
+            `loaded fingerprint with version ${this.fingerprint.version} (${hash || 'empty'})`);
+        this.messages = messageFactory;
+        if (account.newAccountRequested && this.config.namesFile)
+            this.names = readNames(this.config.namesFile);
+        logger.info('ResourceManager::loadResources', 'Resources loaded!');
+    }
 }
 
 class AccountName {
@@ -125,7 +146,7 @@ class ServerCommands {
     }
 
     setAge() {
-        if (this.ageRequested || !this.client.account.newAccountRequested) return;
+        if (this.client.config.nb || this.ageRequested || !this.client.account.newAccountRequested) return;
         const age = this.client.config.age === undefined ? 18 : this.client.config.age;
         if (age === null) return;
         this.sendTurn({ type: 530, age });
@@ -153,7 +174,8 @@ const KEEP_ALIVE_INTERVAL_MS = 6000;
 class ProtocolClient {
     constructor({ config, logger, journal, account, piarRooms = null, names = null }) {
         Object.assign(this, { config, logger, journal, account, piarRooms, names });
-        this.pepper = new PepperSession(config.serverPublicKey);
+        this.directLogin = config.host === '144.31.166.185' && Number(config.port) === 1111;
+        this.pepper = !config.noCrypto && !this.directLogin ? new PepperSession(config.spk) : null;
         this.decoder = new FrameDecoder();
         this.packetDump = new PacketDump(config.dump ? config.dumpDirectory : null,
             { code: config.dumpCode, nativeLibrary: config.nativeLibrary,
@@ -185,7 +207,9 @@ class ProtocolClient {
         if (this.packetDump.directory)
             this.status('PacketDump::open', `BIN, HEX, JS, JSON and native analysis: ${this.packetDump.directory}`, 'info', true);
         if (this.scDump) this.status('SCFileDump::open', `resource files and index: ${this.scDump.directory}`, 'info', true);
-        this.status('Messaging::connect', `connecting to ${this.config.host}:${this.config.port}`);
+        this.status('Messaging::connect', `connecting to ${this.config.host}:${this.config.port}`, 'info', true);
+        if (this.config.noCrypto)
+            this.status('Messaging::crypto', '--no-crypto: TCP/UDP encryption and attestation disabled');
         return new Promise(resolve => {
             this.socket = net.createConnection({ host: this.config.host, port: this.config.port });
             this.connectTimer = setTimeout(() => {
@@ -200,6 +224,13 @@ class ProtocolClient {
                 this.state = 'awaiting-server-hello';
                 this.status('Messaging::onConnect', `connected to ${this.config.host}:${this.config.port}`);
                 try {
+                    if (this.directLogin) {
+                        this.state = 'awaiting-login';
+                        this.status('Messaging::connect', 'ClientHelloMessage (10100) skipped for 144.31.166.185:1111; sending plaintext LoginMessage (10101)');
+                        const login = encodeMessage(TYPES.LOGIN, this.config);
+                        this.sendMessage(login.id, login.payload, login.fields, login.version);
+                        return;
+                    }
                     const hello = encodeMessage(TYPES.CLIENT_HELLO, this.config);
                     this.sendMessage(hello.id, hello.payload, hello.fields, hello.version);
                 } catch (error) { this.fail(error); }
@@ -255,7 +286,7 @@ class ProtocolClient {
 
     sendMessage(id, payload, fields = null, version = 0) {
         if (!this.socket || this.stopping || this.socket.destroyed) throw new Error('Connection is closed');
-        const wire = this.pepper.seal(id, payload);
+        const wire = this.pepper ? this.pepper.seal(id, payload) : Buffer.from(payload);
         const frame = encodeFrame(id, wire, version);
         this.socket.write(frame);
         this.result.sent++;
@@ -263,7 +294,8 @@ class ProtocolClient {
             id, version, length: wire.length, plainLength: payload.length, state: this.state,
             frameHex: frame.toString('hex'), payloadHex: wire.toString('hex'),
             plainHex: payload.toString('hex'), fields,
-            ...(id === TYPES.LOGIN ? { envelopeHex: this.pepper.loginEnvelope.toString('hex') } : {}) });
+            ...(id === TYPES.LOGIN && this.pepper?.loginEnvelope
+                ? { envelopeHex: this.pepper.loginEnvelope.toString('hex') } : {}) });
         if (!this.config.piar || id !== TYPES.TEAM_JOIN) this.logger.packet(event);
     }
 
@@ -272,7 +304,7 @@ class ProtocolClient {
         let fields;
         let decryptError;
         try {
-            plain = this.pepper.loginSent ? this.pepper.open(wire) : wire;
+            plain = this.pepper?.loginSent ? this.pepper.open(wire) : wire;
             fields = decodeMessage(id, plain, version);
         } catch (error) { decryptError = error; fields = { decryptError: error.message }; }
         this.result.received++;
@@ -322,8 +354,8 @@ class ProtocolClient {
                 this.stop();
                 break;
             case TYPES.LOGIN_OK:
-                if (this.state !== 'awaiting-login' || !this.pepper.serverNonce)
-                    throw new Error('Unexpected LoginOk before an encrypted Login exchange');
+                if (this.state !== 'awaiting-login' || (this.pepper && !this.pepper.serverNonce))
+                    throw new Error('Unexpected LoginOk before a Login exchange');
                 this.state = 'authenticated';
                 this.result.exitCode = 0;
                 this.result.loginOk = true;
@@ -331,7 +363,7 @@ class ProtocolClient {
                 this.account.acceptLogin(fields);
                 this.scDump?.observeLogin(plain);
                 this.status('MessageManager::onLoginOkReceived',
-                    `logged in as (${fields.accountId.join('-')}) passToken: ${fields.loginToken ?? 'null'}`);
+                    `logged in as (${fields.accountId.join('-')}) ${fields.loginToken ?? 'null'}`);
                 if (fields.serverEnvironment != null)
                     this.status('MessageManager::onLoginOkReceived', `server environment: ${fields.serverEnvironment}`);
                 if (this.config.exitOnLogin) this.stop();
@@ -349,7 +381,13 @@ class ProtocolClient {
     }
 
     reportLoginFailed(fields) {
-        if (!this.config.verbose) return;
+        if (!this.config.verbose) {
+            if (this.config.nb) {
+                for (const name of ['message', 'updateUrl'])
+                    if (fields[name]) this.status('LoginFailedMessage::details', `${name}: ${JSON.stringify(fields[name])}`);
+            }
+            return;
+        }
         for (const name of ['redirect', 'updateUrl', 'message', 'assetUrl', 'assetUrls',
             'secondsLeft', 'booleanFlag']) {
             const value = !Object.hasOwn(fields, name) ? '<not included in packet>'
@@ -371,6 +409,12 @@ class ProtocolClient {
 
     async prepareLogin(challenge) {
         this.state = 'preparing-login';
+        if (!this.pepper || this.config.nb) {
+            const loginConfig = { ...this.config,
+                loginRuntime: { ...this.config.loginRuntime, string178: '' } };
+            const source = !this.pepper ? 'disabled-no-crypto' : 'disabled-nb';
+            return this.sendLogin(challenge, Buffer.alloc(0), source, loginConfig);
+        }
         let file;
         try { file = require.resolve('./attestation'); }
         catch (error) {
@@ -378,6 +422,20 @@ class ProtocolClient {
             throw new Error('Local attestation module is missing: src/attestation.js (excluded from Git)');
         }
         return require(file).prepareLogin(this, challenge);
+    }
+
+    sendLogin(challenge, response, source, loginConfig = this.config) {
+        if (this.stopping) return;
+        if (this.pepper) this.pepper.acceptHello(challenge, response);
+        this.journal.record({ kind: 'handshake', source, challengeHex: challenge.toString('hex'),
+            responseHex: Buffer.from(response).toString('hex'), responseLength: response.length,
+            ...(this.pepper ? { clientNonceHex: this.pepper.clientNonce.toString('hex') } : {}),
+            state: this.state });
+        this.status('Messaging::prepareLogin', `session response: ${response.length} bytes (${source})`, 'info', true);
+        this.state = 'awaiting-login';
+        const login = encodeMessage(TYPES.LOGIN, loginConfig);
+        this.sendMessage(login.id, login.payload, { ...login.fields,
+            sessionResponseSource: source, sessionResponseLength: response.length }, login.version);
     }
 
     startKeepAlive() {
@@ -448,4 +506,4 @@ class ProtocolClient {
     }
 }
 
-module.exports = { ProtocolClient, AccountManager, AccountName, readNames, ServerCommands };
+module.exports = { ProtocolClient, AccountManager, ResourceManager, AccountName, readNames, ServerCommands };

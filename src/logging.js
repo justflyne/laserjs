@@ -26,7 +26,10 @@ class ConsoleLogger {
         this.color = color === 'always' || (color === 'auto' && !('NO_COLOR' in process.env)
             && (Boolean(output.isTTY) || (process.env.FORCE_COLOR && process.env.FORCE_COLOR !== '0')));
     }
-    paint(code, text) { return this.color ? `\x1b[${code}m${text}\x1b[0m` : String(text); }
+    paint(code, text) {
+        const value = String(text);
+        return this.color ? `\x1b[${code}m${value.replaceAll('\x1b[0m', `\x1b[0m\x1b[${code}m`)}\x1b[0m` : value;
+    }
     number(value) { return this.paint('1;33', value); }
     line(text) { this.output.write(`${text}\n`); }
     start() {
@@ -47,7 +50,9 @@ class ConsoleLogger {
         const sending = event.direction === 'TX';
         const method = sending ? 'Messaging::send' : 'Messaging::nextMessage';
         const action = sending ? 'sent' : 'received';
-        const detail = `${action} ${event.name || messageName(event.id)} with type ${this.number(event.id)}`;
+        const name = event.name || messageName(event.id);
+        const detail = !sending && event.id === 20100 ? `${action} ${name}!`
+            : `${action} ${name} with type ${this.number(event.id)}`;
         this.info(method, detail);
         if (this.verbose) {
             this.info('Messaging::packet', `${event.direction} v${event.version}, ${event.length} wire bytes, ${event.plainLength ?? '?'} plain bytes`);
@@ -113,6 +118,14 @@ class PacketDump {
                 wireLength: frame.length - 7, headerHex: frame.subarray(0, 7).toString('hex'),
                 frameFile: `${id}.frame.bin` } : null };
             fs.rmSync(path.join(this.directory, `${id}.trace.json`), { force: true });
+            if (id === 24101) {
+                // Export v70 OwnHomeData immediately. The v69 native decoder
+                // cannot parse it; preserve unknown bytes in the JS builder.
+                const exported = savePacketExport(file, id, plain, null, context);
+                if (exported.parseStatus !== 'complete') this.failures++;
+                this.onEvent({ kind: 'analyzed', ...exported });
+                return file;
+            }
             savePacketExport(file, id, plain, null, { ...context, parseStatus: 'pending' });
             this.pending = this.pending.then(() => this.analyze(id, plain, file, generation, context))
                 .catch(error => {

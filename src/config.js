@@ -10,12 +10,13 @@ const DEFAULTS = Object.freeze({
     host: 'game.brawlstarsgame.com', port: 9339, timeoutMs: 15000,
     major: 69, minor: 230, build: 0, protocolVersion: 2, cryptoVersion: 59,
     loginMessageVersion: 10,
-    hash: '', serverPublicKey: '5f4bfa1dc7b58fac0611f34dbaf3847b376f968530f76a9a202849017aa9510a',
+    hash: '', fingerprintVersion: null,
+    spk: '5f4bfa1dc7b58fac0611f34dbaf3847b376f968530f76a9a202849017aa9510a',
     hi: 0, lo: 0, token: null, deviceModel: 'Android', androidVersion: '14',
     namesFile: path.join(ROOT, 'names.txt'), age: 18,
     androidId: '', locale: 'en-US', appVersion: null, loginBlob: null, loginPayload: null,
     sessionResponse: null, sessionResponseProvider: null,
-    helloOnly: false, exitOnLogin: false, color: 'auto', verbose: false, hex: false,
+    noCrypto: false, helloOnly: false, exitOnLogin: false, color: 'auto', verbose: false, hex: false,
     piar: false, piarBots: 0, piarDelayMs: 1000, piarMessage: null, piarMessagesFile: null,
     piarRoomCooldownMs: 30000,
     spectatePlayer: null, spectateBots: 0, spectateBrawlTv: false, spectateDelayMs: 0, spectateRetryMs: 500,
@@ -42,7 +43,7 @@ function parseConfig(args) {
     const settings = JSON.parse(fs.readFileSync(configFile, 'utf8'));
     if (!settings || typeof settings !== 'object' || Array.isArray(settings))
         throw new Error('Settings must be a JSON object');
-    const config = { ...DEFAULTS, ...settings, configFile };
+    const config = { ...DEFAULTS, ...settings, configFile, nb: false, nbLicense: null };
     let positional = 0;
     for (let i = 0; i < args.length; i++) {
         const arg = args[i];
@@ -58,6 +59,7 @@ function parseConfig(args) {
         switch (arg) {
             case '--config': value(); break;
             case '--piar': config.piar = true; break;
+            case '--no-crypto': config.noCrypto = true; break;
             case '--no-log': config.logPath = null; break;
             case '--verbose': config.verbose = true; break;
             case '--dump': config.dump = true; break;
@@ -70,6 +72,16 @@ function parseConfig(args) {
                 else throw new Error(`Unexpected argument: ${arg}`);
                 positional++;
         }
+    }
+    if (config.host === '144.31.166.185' && Number(config.port) === 1111) {
+        config.major = 30;
+        config.minor = 242;
+        config.build = 1;
+        config.appVersion = '30.242';
+    }
+    if (config.noCrypto) {
+        for (const field of ['sessionResponse', 'sessionResponseFile', 'sessionResponseHex', 'sessionResponseProvider'])
+            config[field] = null;
     }
     loadBinarySettings(config);
     for (const name of ['piarBots', 'spectateBots'])
@@ -142,8 +154,12 @@ function validate(config) {
     for (const name of ['hi', 'lo']) integer(name, 0, 0xffffffff);
     if (config.age !== null) integer('age', 1, 100);
     if (typeof config.host !== 'string' || !config.host.trim()) throw new Error('host must be a nonempty string');
-    if (!/^[\da-f]{64}$/i.test(config.serverPublicKey)) throw new Error('serverPublicKey must be 32 hex bytes');
+    if (typeof config.noCrypto !== 'boolean') throw new Error('noCrypto must be a boolean');
+    if (!config.noCrypto && !/^[\da-f]{64}$/i.test(config.spk)) throw new Error('spk must be 32 hex bytes');
     if (typeof config.hash !== 'string') throw new Error('hash must be a string');
+    if (config.fingerprintVersion !== null && (typeof config.fingerprintVersion !== 'string'
+        || !/^\d+\.\d+\.\d+$/.test(config.fingerprintVersion)))
+        throw new Error('fingerprintVersion must be major.minor.build or null');
     if (!['auto', 'always', 'never'].includes(config.color)) throw new Error('color must be auto, always, or never');
     for (const name of ['deviceModel', 'androidVersion', 'androidId', 'locale', 'brand']) {
         if (typeof config[name] !== 'string') throw new Error(`${name} must be a string`);
@@ -201,11 +217,12 @@ function validate(config) {
 }
 
 function help() {
-    return `LASERJS — v69 protocol client
+    return `LASERJS — v70.648 protocol client
 
 Usage: node index.js [host [port]] [options]
 
   --host HOST / --port N  Server
+  --no-crypto            Disable TCP/UDP encryption and attestation
   --config FILE          JSON settings (settings.json)
   --piar                 Bot flow visiting rooms with a message from names.txt
   --piar-bots N          Concurrent bots; 0/unlimited — no limit

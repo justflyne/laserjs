@@ -6,10 +6,19 @@ function encode(config) {
     const fields = { protocolVersion: config.protocolVersion, cryptoVersion: config.cryptoVersion,
         major: config.major, build: config.build, minor: config.minor, hash: config.hash,
         deviceType: 2, appStore: 2 };
-    const payload = new BinaryWriter().int(fields.protocolVersion).int(fields.cryptoVersion)
+    const out = new BinaryWriter().int(fields.protocolVersion).int(fields.cryptoVersion)
         .int(fields.major).int(fields.build).int(fields.minor).string(fields.hash)
-        .int(fields.deviceType).int(fields.appStore).finish();
-    return { payload, fields };
+        .int(fields.deviceType).int(fields.appStore);
+    if (config.nb) {
+        const license = config.noCrypto ? null : config.nbLicense;
+        const data = license ? Buffer.concat([license.license, Buffer.from(JSON.stringify({
+            features: license.features, timestamp: Date.now(), connection: 'Keep-Alive',
+            modificationIds: license.modificationIds,
+        }), 'utf8'), Buffer.alloc(1)]) : null;
+        out.bytes(data);
+        fields.helloDataLength = data?.length ?? null;
+    }
+    return { payload: out.finish(), fields };
 }
 
 module.exports = { name: 'ClientHelloMessage', messageType: 10100, messageVersion: 0,

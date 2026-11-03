@@ -1,10 +1,12 @@
 {
-    "hash": "83a002461cb82aac1b928470ddf3716de4c0695e",
-    "major": 69,
-    "minor": 270,
+    "hash": "5332da3e13219fc31001c719ef919d1c484df92f",
+    "fingerprintVersion": "70.735.1",
+    "major": 70,
+    "minor": 735,
     "build": 1,
+    "appVersion": null,
     "protocolVersion": 2,
-    "cryptoVersion": 59,
-    "serverPublicKey": "5f4bfa1dc7b58fac0611f34dbaf3847b376f968530f76a9a202849017aa9510a",
+    "cryptoVersion": 60,
+    "spk": "1f7f356ba92043bbb8531028efdcc2d52411677feaeac77c8728fe9e0aaecb2b",
     "brand": "laserjs"
 }

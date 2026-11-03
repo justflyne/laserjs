@@ -443,7 +443,8 @@ class SpectateBot {
             && this.udpKeyHex === fields.encryptionKeyHex) return;
         this.closeUdp();
         this.udpKeyHex = fields.encryptionKeyHex;
-        this.udpCipher = fields.encryptionKeyHex ? new UdpCipher(Buffer.from(fields.encryptionKeyHex, 'hex')) : null;
+        this.udpCipher = !this.client.config.noCrypto && fields.encryptionKeyHex
+            ? new UdpCipher(Buffer.from(fields.encryptionKeyHex, 'hex')) : null;
         const socket = dgram.createSocket(isIP(host) === 6 ? 'udp6' : 'udp4');
         this.udp = socket;
         this.udpHeader = header;
