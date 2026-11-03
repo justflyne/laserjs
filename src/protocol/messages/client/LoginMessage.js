@@ -4,16 +4,6 @@ const { BinaryWriter } = require('../../protocol');
 
 function encode(config) {
     const version = config.loginMessageVersion ?? 10;
-    if (config.host === '144.31.166.185' && Number(config.port) === 1111) {
-        // Requested v30.242 prefix only; the stock formatVersion=1 Login has more fields.
-        const fields = {
-            accountId: [config.hi, config.lo], token: config.token,
-            major: config.major, formatVersion: 1, minor: config.minor, hash: config.hash,
-        };
-        const payload = new BinaryWriter().long(...fields.accountId).string(fields.token)
-            .int(fields.major).int(fields.formatVersion).int(fields.minor).string(fields.hash).finish();
-        return { payload, fields, version };
-    }
     if (config.loginPayload) return { payload: Buffer.from(config.loginPayload), version,
         fields: { format: 'supplied plaintext Login payload', messageVersion: version } };
     const runtime = config.loginRuntime || {};

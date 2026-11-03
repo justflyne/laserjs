@@ -174,8 +174,7 @@ const KEEP_ALIVE_INTERVAL_MS = 6000;
 class ProtocolClient {
     constructor({ config, logger, journal, account, piarRooms = null, names = null }) {
         Object.assign(this, { config, logger, journal, account, piarRooms, names });
-        this.directLogin = config.host === '144.31.166.185' && Number(config.port) === 1111;
-        this.pepper = !config.noCrypto && !this.directLogin ? new PepperSession(config.spk) : null;
+        this.pepper = !config.noCrypto ? new PepperSession(config.spk) : null;
         this.decoder = new FrameDecoder();
         this.packetDump = new PacketDump(config.dump ? config.dumpDirectory : null,
             { code: config.dumpCode, nativeLibrary: config.nativeLibrary,
@@ -224,13 +223,6 @@ class ProtocolClient {
                 this.state = 'awaiting-server-hello';
                 this.status('Messaging::onConnect', `connected to ${this.config.host}:${this.config.port}`);
                 try {
-                    if (this.directLogin) {
-                        this.state = 'awaiting-login';
-                        this.status('Messaging::connect', 'ClientHelloMessage (10100) skipped for 144.31.166.185:1111; sending plaintext LoginMessage (10101)');
-                        const login = encodeMessage(TYPES.LOGIN, this.config);
-                        this.sendMessage(login.id, login.payload, login.fields, login.version);
-                        return;
-                    }
                     const hello = encodeMessage(TYPES.CLIENT_HELLO, this.config);
                     this.sendMessage(hello.id, hello.payload, hello.fields, hello.version);
                 } catch (error) { this.fail(error); }

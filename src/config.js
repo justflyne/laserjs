@@ -73,12 +73,6 @@ function parseConfig(args) {
                 positional++;
         }
     }
-    if (config.host === '144.31.166.185' && Number(config.port) === 1111) {
-        config.major = 30;
-        config.minor = 242;
-        config.build = 1;
-        config.appVersion = '30.242';
-    }
     if (config.noCrypto) {
         for (const field of ['sessionResponse', 'sessionResponseFile', 'sessionResponseHex', 'sessionResponseProvider'])
             config[field] = null;
